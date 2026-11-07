@@ -55,6 +55,18 @@ The official AOSP17 `hardware/nxp/nfc` contains **both** `android.hardware.nfc-s
 
 The previous pinned AOSP17 vs current vendor `snxxx/` comparison found 168 shared files (84 differing blobs), zero NXP-only paths and 118 AOSP-only paths. These differences justify **pinpoint diff and semantic/ABI review**, not replacing the official source tree wholesale.
 
+## Completed source and manifest CI — verified
+
+[GitHub Actions #42318470917](https://github.com/PixelExperience-Reborn/vendor_nxp_opensource_sn100x_hidlimpl/actions/runs/42318470917) completed **SUCCESS** on the pinned source checker including the additional **`factoryReset()` semantic-difference** assertion:
+
+- Five exact Git commit+tree checks: 2020 SN100x and PN5xx HIDL wrappers, 2022 SN100x native HAL/eSE source, official `android-17.0.0_r1` NXP HAL and NXP17 `17.07.00`.
+- Exact Git blob equality: **18 SN100x files, 14 identical to PN5xx and four source deltas**, with PN5xx-only `NxpNfcLegacy.{cpp,h}`.
+- HIDL 1.2/2.0 services, eSE reset semantics, factory reset versus NFCEE-session reset, HIDL `ioctl` bounds-review item, separation of the old boot-time updater's actual source owner.
+- Official AOSP17's **pre-existing** NFC AIDL V2 and NXP vendor AIDL V1 source/VINTF; no extra HAL import.
+- Original **25 staged manifest profiles PASS** with official NFC/SE owners unchanged and **35/35** source graph positive and adversarial regression tests passing.
+
+**Not tested:** a real build, Soong/NDK/AIDL binary linking, APEX/signatures, VINTF/FCM assembled on mondrian, SELinux, eSE operations, NFC/OMAPI/CTS/VTS or firmware. The CI status is an audit result, *not* NFC device bring-up.
+
 ## Device-specific engineering and acceptance gates
 
 1. Identify the real mondrian NFCC SKU/chip, firmware/driver node, vendor HAL binary (ELF `DT_NEEDED` and symbol version requirements), VINTF declaration, NFC service/SE property configuration and eSE/UICC topology from matched Xiaomi firmware or authorized device diagnostics. **Do not infer the NFCC from the string SN100x, a PN81T example, or an unrelated custom ROM**.
