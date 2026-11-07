@@ -35,7 +35,7 @@ NXP 17.07.00 AIDL V2 is a *comparison source*, not a reason to replace the offic
 
 The 18 SN100x HIDL service blobs have the same 18 paths in the PN5xx wrapper. **14 of 18 blob IDs match byte-for-byte**. Four differ:
 
-1. `1.2/default/Nfc.cpp`: source differs from PN5xx's 1.2 NFC class; NFC core still HIDL 1.2. Confirm reset and other behavior before treating the variants as interchangeable.
+1. `1.2/default/Nfc.cpp`: NFC core is still HIDL 1.2, but **`factoryReset()` differs materially**: SN100x calls `phNxpNciHal_do_factory_reset()`, while PN5xx calls `phNxpNciHal_reset_nfcee_session(false)`. Do not interpret those operations as equivalent or trigger a factory reset on mondrian without a documented, authorized recovery protocol.
 2. `2.0/default/Android.bp`: SN100x adds `se_nq_extn_client` and omits PN5xx `vendor.nxp.nxpnfclegacy@1.0` dependency.
 3. `2.0/default/NqNfc.cpp`: SN100x vendor `resetEse(uint64_t resetType)` **forwards `resetType`** to `phNxpNciHal_resetEse(resetType)`, unlike the PN5xx wrapper which ignores it. SN100x also implements `setEseUpdateState` through legacy eSE client state operations, so consider authorization and data integrity.
 4. `2.0/default/service.cpp`: SN100x registers system NFC and NXP HIDL 2.0 only; PN5xx additionally registers `INxpNfcLegacy`.
