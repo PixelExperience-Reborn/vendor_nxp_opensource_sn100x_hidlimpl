@@ -1,0 +1,88 @@
+name: Android17 SN100x HIDL service versus AOSP17 NXP NFC AIDL
+
+on:
+  push:
+    branches:
+      - audit/a17-sn100x-hidl-service-20261107
+    paths:
+      - 'docs/ANDROID_17_SN100X_HIDL_SERVICE_AUDIT.md'
+      - 'audit/check_sn100x_hidl_vs_aosp17.py'
+      - '.github/workflows/a17-sn100x-hidl-service-boundary.yml'
+  pull_request:
+    paths:
+      - 'docs/ANDROID_17_SN100X_HIDL_SERVICE_AUDIT.md'
+      - 'audit/check_sn100x_hidl_vs_aosp17.py'
+      - '.github/workflows/a17-sn100x-hidl-service-boundary.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pinned-hidl-service-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout isolated SN100x audit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Fetch original SN100x 2020 HIDL wrapper
+        run: |
+          git fetch -q --no-tags --depth=1 origin \
+            +refs/heads/seventeen:refs/remotes/origin/seventeen
+      - name: Fetch original PN5xx HIDL service for blob-level comparison
+        run: |
+          git init -q "$RUNNER_TEMP/old-pn5xx-hidl"
+          git -C "$RUNNER_TEMP/old-pn5xx-hidl" remote add origin \
+            https://github.com/PixelExperience-Reborn/vendor_nxp_opensource_pn5xx_hidlimpl.git
+          git -C "$RUNNER_TEMP/old-pn5xx-hidl" fetch -q --no-tags \
+            --filter=blob:none --depth=1 origin \
+            +refs/heads/seventeen:refs/remotes/origin/seventeen
+      - name: Fetch actual dependent old 2022 SN100x native/eSE HAL source
+        run: |
+          git init -q "$RUNNER_TEMP/old-sn100x-hal"
+          git -C "$RUNNER_TEMP/old-sn100x-hal" remote add origin \
+            https://github.com/PixelExperience-Reborn/vendor_nxp_opensource_sn100x_halimpl.git
+          git -C "$RUNNER_TEMP/old-sn100x-hal" fetch -q --no-tags \
+            --filter=blob:none --depth=1 origin \
+            +refs/heads/seventeen:refs/remotes/origin/seventeen
+      - name: Fetch official Android17 NXP HAL and vendor AIDL
+        run: |
+          git init -q "$RUNNER_TEMP/aosp17-nxp"
+          git -C "$RUNNER_TEMP/aosp17-nxp" remote add origin \
+            https://android.googlesource.com/platform/hardware/nxp/nfc
+          git -C "$RUNNER_TEMP/aosp17-nxp" fetch -q --no-tags \
+            --filter=blob:none --depth=1 origin \
+            refs/tags/android-17.0.0_r1:refs/tags/android-17.0.0_r1
+      - name: Fetch modern NXP Android17 17.07.00 AIDL service
+        run: |
+          git init -q "$RUNNER_TEMP/nxp17"
+          git -C "$RUNNER_TEMP/nxp17" remote add origin \
+            https://github.com/NXPNFCProject/nfcandroid_nfc_hidlimpl.git
+          git -C "$RUNNER_TEMP/nxp17" fetch -q --no-tags \
+            --filter=blob:none --depth=1 origin \
+            +refs/heads/br_ar_17_aosp_mainline:refs/remotes/origin/br_ar_17_aosp_mainline
+      - name: Fetch independent PE-Reborn AOSP17 working manifest
+        run: |
+          git clone -q --depth=1 \
+            --branch port/a17-aosp17-manifest-20261102 \
+            https://github.com/PixelExperience-Reborn/manifest.git \
+            "$RUNNER_TEMP/manifest"
+      - name: Verify all five immutable trees, service variants and source boundaries
+        run: |
+          python3 audit/check_sn100x_hidl_vs_aosp17.py \
+            "$GITHUB_WORKSPACE" "$RUNNER_TEMP/old-pn5xx-hidl" \
+            "$RUNNER_TEMP/old-sn100x-hal" "$RUNNER_TEMP/aosp17-nxp" \
+            "$RUNNER_TEMP/nxp17" "$RUNNER_TEMP/manifest"
+      - name: Execute source-ownership/adversarial manifest regression suite
+        run: |
+          cd "$RUNNER_TEMP/manifest"
+          python3 -m unittest discover -s tools \
+            -p test_aosp17_manifest_entrypoint.py -v
+      - name: Disclose test scope
+        run: |
+          echo "SOURCE ONLY: pinned 2020 SN100x/PN5xx HIDL service graphs,"
+          echo "SN100x 2022 HAL/eSE client, actual AOSP17/NXP17 AIDL and manifest."
+          echo "NOT TESTED: Android17 Soong/NDK/APEX build, device VINTF,"
+          echo "SELinux, proprietary NFC/eSE/firmware ABI, CTS/VTS, mondrian."
