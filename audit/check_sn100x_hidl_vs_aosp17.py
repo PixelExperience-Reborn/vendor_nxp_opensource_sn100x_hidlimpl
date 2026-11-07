@@ -123,6 +123,14 @@ def legacy_compare(old_sn, old_pn):
     require("LOG_ALWAYS_FATAL_IF(status != OK" in service2
             and 'ALOGE_IF(status != OK' in service2,
             "SN100x HIDL2.0 vendor registration observability changed")
+    # The 1.2 source delta is not cosmetic: factoryReset changed from
+    # an NFCEE-session reset in PN5xx to a native factory reset in SN100x.
+    sn_core = show(old_sn, sn, "1.2/default/Nfc.cpp")
+    pn_core = show(old_pn, pn, "1.2/default/Nfc.cpp")
+    require("phNxpNciHal_do_factory_reset();" in sn_core
+            and "phNxpNciHal_reset_nfcee_session(false);" in pn_core,
+            "SN100x versus PN5xx factory-reset behavior changed")
+    print("PASS: SN100x factoryReset differs from PN5xx NFCEE-session reset")
     vendor = show(old_sn, sn, "2.0/default/NqNfc.cpp")
     pn_vendor = show(old_pn, pn, "2.0/default/NqNfc.cpp")
     require("NqNfc::resetEse(uint64_t resetType)" in vendor
